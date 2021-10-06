@@ -1,0 +1,1 @@
+pyinstaller --noconfirm --onedir --console --name "NoteRetreiver" --add-data "config.py;." --add-data "credentials.json;." --add-data "credentials.pickle;."  "noteretriever.py"

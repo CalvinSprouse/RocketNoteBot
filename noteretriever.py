@@ -59,7 +59,7 @@ def uniquify_filename(file_path: str) -> str:
     return file_save_location
 
 
-def get_message_attachments(gmail_service, message, save_location="attachments"):
+def get_message_attachments(gmail_service, message, save_location: str):
     """ Downloads attachments from an email """
 
     def _parse_parts(parts):
@@ -111,22 +111,24 @@ def safe_copy_file(src: str, dst: str, ensure_dst_exists: bool = True):
 # TODO: Success notification
 
 if __name__ == "__main__":
+    attachment_save_dir = "attachments"
+    os.makedirs(attachment_save_dir, exist_ok=True)
+    
     # download all attachments from inbox and mark each email as read
     email_service = authentication()
     results = search_messages(email_service, "is:unread")
     for email in results:
-        get_message_attachments(email_service, email)
+        get_message_attachments(email_service, email, attachment_save_dir)
         email_service.users().messages().modify(userId="me", id=email["id"],
                                                 body={'removeLabelIds': ['UNREAD']}).execute()
     print("Inbox attachments retrieved")
 
     # sort the downloaded attachments into folders based on their file names
-    attachment_dir = "attachments"
-    print(f"Sorting {len(os.listdir(attachment_dir))} files: {os.listdir(attachment_dir)}")
-    if opath.isdir(attachment_dir):
-        for file in os.listdir(attachment_dir):
+    print(f"Sorting {len(os.listdir(attachment_save_dir))} files: {os.listdir(attachment_save_dir)}")
+    if opath.isdir(attachment_save_dir):
+        for file in os.listdir(attachment_save_dir):
             try:
-                file_location = opath.join(attachment_dir, file)
+                file_location = opath.join(attachment_save_dir, file)
                 file_name = opath.basename(file)
                 if not opath.isfile(file_location):
                     continue
