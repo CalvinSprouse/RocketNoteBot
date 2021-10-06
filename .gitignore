@@ -1,6 +1,6 @@
 ### RocketNoteBot ###
 credentials.json
-token.pickle
+credentials.pickle
 config.py
 /attachments
 

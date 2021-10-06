@@ -2,143 +2,144 @@ import config
 import os
 import pickle
 import shutil
+from os import path as opath
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from base64 import urlsafe_b64decode, urlsafe_b64encode
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.image import MIMEImage
-from email.mime.audio import MIMEAudio
-from email.mime.base import MIMEBase
-from mimetypes import guess_type as guess_mime_type
-
-# Request all access (permission to read/send/receive emails, manage the inbox, and more)
-SCOPES = ['https://mail.google.com/']
-address = "sprousecal.rocketnotes@gmail.com"
+from base64 import urlsafe_b64decode
 
 
-def authentication():
+def authentication(credentials_file: str = "credentials.json", pickle_file: str = "credentials.pickle",
+                   scopes: list = None):
     """Authenticates from the credentials.json file and returns a service"""
+    if scopes is None:
+        scopes = ["https://mail.google.com"]
     creds = None
-    # the file token.pickle stores the user's access and refresh tokens, and is
+    # the file credentials.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first time
-    if os.path.exists("token.pickle"):
-        with open("token.pickle", "rb") as token:
+    if opath.exists(credentials_file):
+        with open(pickle_file, "rb") as token:
             creds = pickle.load(token)
     # if there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file(credentials_file, scopes)
             creds = flow.run_local_server(port=0)
         # save the credentials for the next run
-        with open("token.pickle", "wb") as token:
+        with open(pickle_file, "wb") as token:
             pickle.dump(creds, token)
     return build('gmail', 'v1', credentials=creds)
 
 
-def search_messages(service, query):
+def search_messages(gmail_service, query):
     """Search the inbox for emails matching a query"""
-    result = service.users().messages().list(userId='me', q=query).execute()
+    result = gmail_service.users().messages().list(userId='me', q=query).execute()
     messages = []
     if 'messages' in result:
         messages.extend(result['messages'])
     while 'nextPageToken' in result:
         page_token = result['nextPageToken']
-        result = service.users().messages().list(userId='me', q=query, pageToken=page_token).execute()
+        result = gmail_service.users().messages().list(userId='me', q=query, pageToken=page_token).execute()
         if 'messages' in result:
             messages.extend(result['messages'])
     return messages
 
 
-def get_message_attachments(service, message, save_location="attachments"):
+def uniquify_filename(file_path: str) -> str:
+    """ Appends (x) where x is a number such that the filepath becomes unique """
+    file_save_dir = opath.dirname(file_path)
+    file_name_no_ext = opath.basename(file_path)[:opath.basename(file_path).rindex(".")].replace(" ", "")
+    ext = opath.basename(file_path)[opath.basename(file_path).rindex("."):]
+    file_save_location = opath.join(file_save_dir, f"{file_name_no_ext}{ext}")
+    if opath.isfile(file_save_location):
+        counter = 1
+        file_save_location = opath.join(file_save_dir, f"{file_name_no_ext}({counter}).{ext}")
+    return file_save_location
+
+
+def get_message_attachments(gmail_service, message, save_location="attachments"):
     """ Downloads attachments from an email """
 
-    def get_size_format(b, factor=1024, suffix="B"):
+    def _parse_parts(parts):
         """
-        Scale bytes to its proper byte format
-        e.g:
-            1253656 => '1.20MB'
-            1253656678 => '1.17GB'
+        Utility function that parses the content of an email
+        Recursively finds message parts within parts
         """
-        for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
-            if b < factor:
-                return f"{b:.2f}{unit}{suffix}"
-            b /= factor
-        return f"{b:.2f}Y{suffix}"
-
-    def parse_parts(parts):
-        """ Utility function that parses the content of an email """
         for part in parts:
             filename = part.get("filename")
             body = part.get("body")
+
             if part.get("parts"):
-                # recursively call this function when we see that a part
-                # has parts inside
-                parse_parts(part.get("parts"))
+                _parse_parts(part.get("parts"))
             if part.get("mimeType") == "text/plain" or part.get("mimeType") == "index.html":
                 continue
-            else:
-                # attachment other than a plain text or HTML
-                for part_header in part.get("headers"):
-                    if part_header.get("name") == "Content-Disposition":
-                        if "attachment" in part_header.get("value"):
-                            # we get the attachment ID
-                            # and make another request to get the attachment itself
-                            print("Saving the file:", filename, "size:", get_size_format(body.get("size")))
-                            attachment_id = body.get("attachmentId")
-                            attachment = service.users().messages() \
-                                .attachments().get(id=attachment_id, userId='me', messageId=message['id']).execute()
-                            data = attachment.get("data")
+            # attachment other than a plain text or HTML
+            for part_header in part.get("headers"):
+                if part_header.get("name") == "Content-Disposition":
+                    if "attachment" in part_header.get("value"):
+                        # we get the attachment ID
+                        # and make another request to get the attachment itself
+                        print("Saving the file:", filename, "size:", body.get("size"))
+                        attachment_id = body.get("attachmentId")
+                        attachment = gmail_service.users().messages().attachments().get(
+                            id=attachment_id, userId='me', messageId=message['id']).execute()
+                        data = attachment.get("data")
 
-                            os.makedirs(save_location, exist_ok=True)
-                            filepath = os.path.join(save_location, filename)
-                            if os.path.isfile(filepath):
-                                counter = 1
-                                while os.path.isfile(filepath):
-                                    filepath = os.path.join(
-                                        save_location, f"{filename.split('.')[0]}({counter}){filename.split('.')[1]}")
-                                    counter += 1
+                        os.makedirs(save_location, exist_ok=True)
+                        filepath = uniquify_filename(opath.join(save_location, filename))
 
-                            if data:
-                                with open(filepath, "wb") as f:
-                                    f.write(urlsafe_b64decode(data))
+                        if data:
+                            with open(filepath, "wb") as f:
+                                f.write(urlsafe_b64decode(data))
 
-    msg = service.users().messages().get(userId='me', id=message['id'], format='full').execute()
-    parse_parts(msg['payload'].get("parts"))
+    msg = gmail_service.users().messages().get(userId='me', id=message['id'], format='full').execute()
+    _parse_parts(msg['payload'].get("parts"))
 
 
-def download_all_emails():
-    """ Authenticates a connection to gmail and downloads all attachments available from unread emails """
+def safe_copy_file(src: str, dst: str, ensure_dst_exists: bool = True):
+    """ Copy a file and ensure the dst dir exists and that the filename is unique"""
+    assert opath.isfile(src)
+    if ensure_dst_exists:
+        os.makedirs(opath.dirname(dst), exist_ok=True)
+    shutil.copy2(src, uniquify_filename(dst))
+    print("File moved:", src, dst)
+
+
+# TODO: Self scheduled runs
+# TODO: Success notification
+
+if __name__ == "__main__":
+    # download all attachments from inbox and mark each email as read
     email_service = authentication()
     results = search_messages(email_service, "is:unread")
     for email in results:
+        get_message_attachments(email_service, email)
         email_service.users().messages().modify(userId="me", id=email["id"],
                                                 body={'removeLabelIds': ['UNREAD']}).execute()
-        get_message_attachments(email_service, email)
+    print("Inbox attachments retrieved")
 
+    # sort the downloaded attachments into folders based on their file names
+    attachment_dir = "attachments"
+    print(f"Sorting {len(os.listdir(attachment_dir))} files: {os.listdir(attachment_dir)}")
+    if opath.isdir(attachment_dir):
+        for file in os.listdir(attachment_dir):
+            try:
+                file_location = opath.join(attachment_dir, file)
+                file_name = opath.basename(file)
+                if not opath.isfile(file_location):
+                    continue
+                # compare the keys to the filename and save to the default directory always
+                for key, val in config.save_location.items():
+                    safe_copy_file(file_location, opath.join(config.default_save_location, file_name))
 
-def sort_downloads():
-    # TODO: NEEDS SUPER CLEANUP
-    for file in os.listdir("attachments"):
-        if not os.path.isfile(os.path.join("attachments", file)):
-            continue
-        for key, val in config.save_location.items():
-            os.makedirs(os.path.abspath(config.default_save_location), exist_ok=True)
-            shutil.copy2(os.path.join("attachments", file), os.path.join(config.default_save_location, os.path.basename(file)))
-            if key.lower() in file.lower():
-                for save_location in val:
-                    os.makedirs(os.path.join(save_location), exist_ok=True)
-                    shutil.copy2(os.path.join("attachments", file), os.path.join(save_location, os.path.basename(file)))
-        os.remove(os.path.join("attachments", file))
-
-
-# TODO: Cleanup
-# TODO: Error proofing (file not exist, duplicate file names)
-# TODO: Self scheduled runs
-# TODO: Success notification
-if __name__ == "__main__":
-    download_all_emails()
-    sort_downloads()
+                    # if a match is found save the file to all locations in the value list
+                    if key.lower() in file.lower().replace(" ", ""):
+                        print(f"Match found {file_name} to {key} -> {val}")
+                        for save_location in val:
+                            safe_copy_file(file_location, opath.join(save_location, file_name))
+                # finally remove the file from the attachments directory
+                os.remove(file_location)
+            except AssertionError:
+                print(f"File {file} is not a file")
