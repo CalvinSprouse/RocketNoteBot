@@ -3,6 +3,7 @@ credentials.json
 credentials.pickle
 config.py
 /attachments
+/output
 
 ### PyCharm ###
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
