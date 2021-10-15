@@ -13,11 +13,11 @@ def authentication(credentials_file: str = "credentials.json", pickle_file: str 
                    scopes: list = None):
     """Authenticates from the credentials.json file and returns a service"""
     if scopes is None:
-        scopes = ["https://mail.google.com"]
+        scopes = ["https://mail.google.com/"]
     creds = None
     # the file credentials.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first time
-    if opath.exists(credentials_file):
+    if opath.exists(pickle_file):
         with open(pickle_file, "rb") as token:
             creds = pickle.load(token)
     # if there are no (valid) credentials available, let the user log in.
