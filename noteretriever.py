@@ -145,3 +145,4 @@ if __name__ == "__main__":
                 os.remove(file_location)
             except AssertionError:
                 print(f"File {file} is not a file")
+    input("Press any key to exit.")
