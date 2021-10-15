@@ -2,6 +2,7 @@
 credentials.json
 credentials.pickle
 config.py
+build.json
 /attachments
 /output
 
