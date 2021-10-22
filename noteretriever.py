@@ -107,42 +107,46 @@ def safe_copy_file(src: str, dst: str, ensure_dst_exists: bool = True):
     print("File moved:", src, dst)
 
 
-# TODO: Self scheduled runs
 # TODO: Success notification
 
-if __name__ == "__main__":
-    attachment_save_dir = "attachments"
-    os.makedirs(attachment_save_dir, exist_ok=True)
-    
-    # download all attachments from inbox and mark each email as read
-    email_service = authentication()
-    results = search_messages(email_service, "is:unread")
-    for email in results:
-        get_message_attachments(email_service, email, attachment_save_dir)
-        email_service.users().messages().modify(userId="me", id=email["id"],
-                                                body={'removeLabelIds': ['UNREAD']}).execute()
-    print("Inbox attachments retrieved")
+try:
+    if __name__ == "__main__":
+        attachment_save_dir = "attachments"
+        os.makedirs(attachment_save_dir, exist_ok=True)
+        
+        # download all attachments from inbox and mark each email as read
+        email_service = authentication()
+        results = search_messages(email_service, "is:unread")
+        for email in results:
+            get_message_attachments(email_service, email, attachment_save_dir)
+            email_service.users().messages().modify(userId="me", id=email["id"],
+                                                    body={'removeLabelIds': ['UNREAD']}).execute()
+        print("Inbox attachments retrieved")
 
-    # sort the downloaded attachments into folders based on their file names
-    print(f"Sorting {len(os.listdir(attachment_save_dir))} files: {os.listdir(attachment_save_dir)}")
-    if opath.isdir(attachment_save_dir):
-        for file in os.listdir(attachment_save_dir):
-            try:
-                file_location = opath.join(attachment_save_dir, file)
-                file_name = opath.basename(file)
-                if not opath.isfile(file_location):
-                    continue
-                # compare the keys to the filename and save to the default directory always
-                for key, val in config.save_location.items():
-                    safe_copy_file(file_location, opath.join(config.default_save_location, file_name))
+        # sort the downloaded attachments into folders based on their file names
+        print(f"Sorting {len(os.listdir(attachment_save_dir))} files: {os.listdir(attachment_save_dir)}")
+        if opath.isdir(attachment_save_dir):
+            for file in os.listdir(attachment_save_dir):
+                try:
+                    file_location = opath.join(attachment_save_dir, file)
+                    file_name = opath.basename(file)
+                    if not opath.isfile(file_location):
+                        continue
+                    # compare the keys to the filename and save to the default directory always
+                    for location in config.default_save_location:
+                        safe_copy_file(file_location, opath.join(location, file_name))
+                    for key, val in config.save_location.items():
+                        # if a match is found save the file to all locations in the value list
+                        if key.lower() in file.lower().replace(" ", ""):
+                            print(f"Match found {file_name} to {key} -> {val}")
+                            for save_location in val:
+                                safe_copy_file(file_location, opath.join(save_location, file_name))
+                    # finally remove the file from the attachments directory
+                    os.remove(file_location)
+                except AssertionError:
+                    print(f"File {file} is not a file")
+except Exception as e:
+    print(e)
+    print("Program Failed: See above exception")
 
-                    # if a match is found save the file to all locations in the value list
-                    if key.lower() in file.lower().replace(" ", ""):
-                        print(f"Match found {file_name} to {key} -> {val}")
-                        for save_location in val:
-                            safe_copy_file(file_location, opath.join(save_location, file_name))
-                # finally remove the file from the attachments directory
-                os.remove(file_location)
-            except AssertionError:
-                print(f"File {file} is not a file")
-    input("Press any key to exit.")
+input("Press any key to exit.")

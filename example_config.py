@@ -5,7 +5,7 @@ Create a google project and enable the gmail api
 Download the credentials and save them as credentials.json
 """
 
-default_save_location = ""
+default_save_location = [""]
 save_location = {
     "tag in the file name": [r"save location", r"save_location 2"]
 }
