@@ -5,6 +5,7 @@ config.py
 build.json
 /attachments
 /output
+run.bat
 
 ### PyCharm ###
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider

@@ -1,11 +1,13 @@
 """
-Fill in the default save location and any desired tag location pairs (one tag corresponds to a list of locations)
-RENAME ME TO config.py
-Create a google project and enable the gmail api
-Download the credentials and save them as credentials.json
+How to use:
+Replace source directory with the directorys that your notes may be sent (say a main one drive folder)
+Replace default save locations with any locations that you want your notes to always be saved to (backups)
+Add to the dictionary key words and their corresponding save locations to sort them from the source dir
+Rename to config.py
 """
 
-default_save_location = [""]
-save_location = {
-    "tag in the file name": [r"save location", r"save_location 2"]
+source_directorys = [r"C:\RocketNotes"]
+default_save_locations = [r"C:\Notes"]
+keyword_sorting_dict = {
+    "etsc160": [r"C:\etsc160\Notes"],
 }
