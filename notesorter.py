@@ -25,29 +25,28 @@ def safe_copy_file(src: str, dst: str, ensure_dst_exists: bool = True):
     print("File moved:", src, dst)
 
 
-try:
-    if __name__ == "__main__":
-        for source in [p for p in config.source_directorys if opath.isdir(p)]:
-            if len(os.listdir(source)) >= 0:
-                print("Identified no files to sort in", source)
-                continue
-            print(f"Identified {len(os.listdir(source))} files to be sorted from", source)
-            for file in [f for f in os.listdir(source) if opath.isfile(f)]:
-                file_location = opath.join(source, file)
-                file_name = opath.basename(file)
+if __name__ == "__main__":
+    for source in [opath.expanduser(p) for p in config.source_directorys]:
+        if not opath.isdir(source):
+            # skip non-existent source directorys
+            continue
+        if len(os.listdir(source)) <= 0:
+            print("Identified no files to sort in", source)
+            continue
+        print(f"Identified {len(os.listdir(source))} files to be sorted from", source)
+        for file in os.listdir(source):
+            file_location = opath.join(source, file)
+            file_name = opath.basename(file)
+            if opath.isfile(file_location):
                 # save files to default locations
                 for location in config.default_save_locations:
-                    safe_copy_file(file_location, location)
+                    safe_copy_file(file_location, opath.join(location, file_name))
                 # save files to sorted locations
-                for key, val in config.default_save_locations.items():
+                for key, val in config.keyword_sorting_dict.items():
                     if key.lower() in file.lower().replace(" ", ""):
                         print(f"Match found {file_name} to {key} -> {val}")
-                    for save_location in val:
+                    for save_location in [opath.expanduser(v) for v in val]:
                         safe_copy_file(file_location, opath.join(save_location, file_name))
                 # remove file assuming it was successful
                 os.remove(file_location)
-except Exception as e:
-    print(e)
-    print("Program has failed: See above exception")
 input("Press enter to exit")
-
