@@ -45,8 +45,8 @@ if __name__ == "__main__":
                 for key, val in config.keyword_sorting_dict.items():
                     if key.lower() in file.lower().replace(" ", ""):
                         print(f"Match found {file_name} to {key} -> {val}")
-                    for save_location in [opath.expanduser(v) for v in val]:
-                        safe_copy_file(file_location, opath.join(save_location, file_name))
+                        for save_location in [opath.expanduser(v) for v in val]:
+                            safe_copy_file(file_location, opath.join(save_location, file_name))
                 # remove file assuming it was successful
                 os.remove(file_location)
 input("Press enter to exit")
