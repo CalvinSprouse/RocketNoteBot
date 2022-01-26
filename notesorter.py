@@ -40,13 +40,13 @@ if __name__ == "__main__":
             if opath.isfile(file_location):
                 # save files to default locations
                 for location in config.default_save_locations:
-                    safe_copy_file(file_location, opath.join(location, file_name))
+                    safe_copy_file(file_location, opath.join(os.path.expanduser(location), file_name))
                 # save files to sorted locations
                 for key, val in config.keyword_sorting_dict.items():
                     if key.lower() in file.lower().replace(" ", ""):
                         print(f"Match found {file_name} to {key} -> {val}")
                         for save_location in [opath.expanduser(v) for v in val]:
-                            safe_copy_file(file_location, opath.join(save_location, file_name))
+                            safe_copy_file(file_location, opath.join(os.path.expanduser(save_location), file_name))
                 # remove file assuming it was successful
-                os.remove(file_location)
+                # os.remove(file_location)
 input("Press enter to exit")
