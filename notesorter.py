@@ -48,5 +48,5 @@ if __name__ == "__main__":
                         for save_location in [opath.expanduser(v) for v in val]:
                             safe_copy_file(file_location, opath.join(os.path.expanduser(save_location), file_name))
                 # remove file assuming it was successful
-                # os.remove(file_location)
+                os.remove(file_location)
 input("Press enter to exit")
